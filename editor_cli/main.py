@@ -16,7 +16,7 @@ def parse_line_col(token: str) -> tuple[int, int]:
 
 def run_repl(root: Path) -> None:
     ws = Workspace.create(root)
-    print("简易文本编辑器（Lab1）。输入命令，输入 'exit' 退出。")
+    print("Emrys的文本编辑器——输入命令或输入 'exit' 退出。")
     try:
         while True:
             try:
@@ -37,8 +37,11 @@ def run_repl(root: Path) -> None:
             out_lines: Optional[list[str]] = None
 
             try:
-                if cmd == "load" and len(args) == 1:
-                    out = ws.load(args[0])
+                if cmd == "load":
+                    if len(args) == 1:
+                        out = ws.load(args[0])
+                    else:
+                        out = "用法: load <file>"
                 elif cmd == "save":
                     if not args:
                         out = ws.save()
@@ -51,7 +54,7 @@ def run_repl(root: Path) -> None:
                         with_log = len(args) >= 2 and args[1] == "with-log"
                         out = ws.init(args[0], with_log=with_log)
                     else:
-                        out = "用法: init <file> [with-log]"
+                        out = "用法: init <text|xml|file> [with-log]"
                 elif cmd == "close":
                     if len(args) == 0:
                         out = ws.close()
@@ -59,8 +62,11 @@ def run_repl(root: Path) -> None:
                         out = ws.close(args[0])
                     else:
                         out = "用法: close [file]"
-                elif cmd == "edit" and len(args) == 1:
-                    out = ws.edit_active(args[0])
+                elif cmd == "edit":
+                    if len(args) == 1:
+                        out = ws.edit_active(args[0])
+                    else:
+                        out = "用法: edit <file>"
                 elif cmd == "editor-list":
                     out_lines = ws.editor_list()
                 elif cmd == "dir-tree":
@@ -70,8 +76,11 @@ def run_repl(root: Path) -> None:
                         out_lines = ws.dir_tree(args[0])
                     else:
                         out = "用法: dir-tree [path]"
-                elif cmd == "append" and len(args) == 1:
-                    out = ws.append(args[0])
+                elif cmd == "append":
+                    if len(args) == 1:
+                        out = ws.append(args[0])
+                    else:
+                        out = "用法: append \"text\""
                 elif cmd == "insert":
                     if len(args) == 2:
                         line_col = parse_line_col(args[0])
@@ -80,11 +89,15 @@ def run_repl(root: Path) -> None:
                         out = "用法: insert <line:col> \"text\""
                 elif cmd == "delete":
                     if len(args) == 2:
+                        # Text delete: delete <line:col> <len>
                         line_col = parse_line_col(args[0])
                         length = int(args[1])
                         out = ws.delete(line_col, length)
+                    elif len(args) == 1:
+                        # XML delete: delete <elementId>
+                        out = ws.delete_element(args[0])
                     else:
-                        out = "用法: delete <line:col> <len>"
+                        out = "用法: delete <line:col> <len> 或 delete <elementId>"
                 elif cmd == "replace":
                     if len(args) == 3:
                         line_col = parse_line_col(args[0])
@@ -100,6 +113,50 @@ def run_repl(root: Path) -> None:
                         out_lines = ws.show(int(a), int(b))
                     else:
                         out = "用法: show [startLine:endLine]"
+                elif cmd == "insert-before":
+                    if len(args) >= 3:
+                        tag = args[0]
+                        new_id = args[1]
+                        target_id = args[2]
+                        text = args[3] if len(args) > 3 else ""
+                        out = ws.insert_before(tag, new_id, target_id, text)
+                    else:
+                        out = "用法: insert-before <tag> <newId> <targetId> [\"text\"]"
+                elif cmd == "append-child":
+                    if len(args) >= 3:
+                        tag = args[0]
+                        new_id = args[1]
+                        parent_id = args[2]
+                        text = args[3] if len(args) > 3 else ""
+                        out = ws.append_child(tag, new_id, parent_id, text)
+                    else:
+                        out = "用法: append-child <tag> <newId> <parentId> [\"text\"]"
+                elif cmd == "edit-id":
+                    if len(args) == 2:
+                        out = ws.edit_id(args[0], args[1])
+                    else:
+                        out = "用法: edit-id <oldId> <newId>"
+                elif cmd == "edit-text":
+                    if len(args) >= 1:
+                        element_id = args[0]
+                        text = args[1] if len(args) > 1 else ""
+                        out = ws.edit_text(element_id, text)
+                    else:
+                        out = "用法: edit-text <elementId> [\"text\"]"
+                elif cmd == "xml-tree":
+                    if len(args) == 0:
+                        out_lines = ws.xml_tree()
+                    elif len(args) == 1:
+                        out_lines = ws.xml_tree(args[0])
+                    else:
+                        out = "用法: xml-tree [file]"
+                elif cmd == "spell-check":
+                    if len(args) == 0:
+                        out_lines = ws.spell_check()
+                    elif len(args) == 1:
+                        out_lines = ws.spell_check(args[0])
+                    else:
+                        out = "用法: spell-check [file]"
                 elif cmd == "undo":
                     out = ws.undo()
                 elif cmd == "redo":
@@ -136,6 +193,13 @@ def run_repl(root: Path) -> None:
                     ws.persist()
                     print("已退出。")
                     break
+                elif cmd == "stats":
+                    if len(args) == 0:
+                        out = ws.stats()
+                    elif len(args) == 1:
+                        out = ws.stats(args[0])
+                    else:
+                        out = "用法: stats [file]"
                 else:
                     out = f"未知命令: {cmd}"
             except Exception as e:

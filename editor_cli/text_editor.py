@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from .commands import TextInsertCommand, TextDeleteCommand, TextReplaceCommand, Command
+from .editor import Editor
 
 
 class TextEditorError(Exception):
@@ -12,13 +13,33 @@ class TextEditorError(Exception):
 
 
 @dataclass
-class TextEditor:
-    path: Path
+class TextEditor(Editor):
     lines: List[str] = field(default_factory=list)
-    modified: bool = False
-    logging_enabled: bool = False
     _undo_stack: List[Command] = field(default_factory=list)
     _redo_stack: List[Command] = field(default_factory=list)
+
+    def __init__(self, path: Path, lines: List[str], modified: bool = False, logging_enabled: bool = False):
+        super().__init__(path, modified, logging_enabled)
+        self.lines = lines
+        self._undo_stack = []
+        self._redo_stack = []
+
+    @staticmethod
+    def _parse_log_config(line: str) -> tuple[bool, List[str]]:
+        parts = line.strip().split()
+        if not parts or parts[0] != "#" or len(parts) < 2 or parts[1] != "log":
+            return False, []
+        
+        enabled = True
+        excluded = []
+        i = 2
+        while i < len(parts):
+            if parts[i] == "-e" and i + 1 < len(parts):
+                excluded.append(parts[i+1])
+                i += 2
+            else:
+                i += 1
+        return enabled, excluded
 
     @staticmethod
     def from_file(path: Path) -> "TextEditor":
@@ -30,8 +51,11 @@ class TextEditor:
             lines = []
         editor = TextEditor(path=path, lines=lines, modified=not path.exists())
         # 自动日志开关：首行 # log
-        if lines and lines[0].strip() == "# log":
-            editor.logging_enabled = True
+        if lines:
+            enabled, excluded = TextEditor._parse_log_config(lines[0])
+            if enabled:
+                editor.logging_enabled = True
+                editor.excluded_log_commands = excluded
         return editor
 
     @staticmethod
