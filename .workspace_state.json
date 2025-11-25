@@ -4,7 +4,22 @@
       "path": "/data/xjq/Advanced_Software_Development/test.txt",
       "modified": false,
       "logging_enabled": true
+    },
+    {
+      "path": "/data/xjq/Advanced_Software_Development/test.xml",
+      "modified": false,
+      "logging_enabled": false
+    },
+    {
+      "path": "/data/xjq/Advanced_Software_Development/note.txt",
+      "modified": false,
+      "logging_enabled": false
+    },
+    {
+      "path": "/data/xjq/Advanced_Software_Development/library.xml",
+      "modified": false,
+      "logging_enabled": false
     }
   ],
-  "active_file": "/data/xjq/Advanced_Software_Development/test.txt"
+  "active_file": "/data/xjq/Advanced_Software_Development/note.txt"
 }

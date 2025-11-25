@@ -16,15 +16,16 @@ class FileLogger:
 
     def __init__(self, event_bus: EventBus) -> None:
         self.event_bus = event_bus
-        self.enabled_files: Set[Path] = set()
+        self.enabled_files: Dict[Path, List[str]] = {}
         self.session_started: Set[Path] = set()
         self.event_bus.subscribe("command", self._on_command)
 
-    def set_enabled(self, file: Path, enabled: bool) -> None:
+    def set_enabled(self, file: Path, enabled: bool, excluded_commands: List[str] = []) -> None:
         if enabled:
-            self.enabled_files.add(file)
+            self.enabled_files[file] = excluded_commands
         else:
-            self.enabled_files.discard(file)
+            if file in self.enabled_files:
+                del self.enabled_files[file]
 
     def is_enabled(self, file: Path) -> bool:
         return file in self.enabled_files
@@ -50,6 +51,11 @@ class FileLogger:
         file = Path(evt.file)
         if file not in self.enabled_files:
             return
+        
+        excluded = self.enabled_files[file]
+        if evt.command in excluded:
+            return
+
         self._ensure_session(file)
         log_path = file.parent / f".{file.name}.log"
         with log_path.open("a", encoding="utf-8") as f:

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root id="root">
+    <book id="book2">
+        <title id="title2">Clean Code</title>
+    </book>
+    <book id="book1">
+        <title id="title1">Design Patterns</title>
+        <price id="price1">49.99</price>
+    </book>
+</root>
