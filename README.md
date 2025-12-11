@@ -159,3 +159,118 @@ dir-tree
 # 退出程序（自动保存工作区状态）
 exit
 ```
+
+# 物流领域模型（Lab3）
+
+## 概述
+
+基于快递物流管理系统需求，构建领域模型并实现核心业务流程。系统覆盖包裹从揽收到签收的全生命周期管理，包括正常流程和异常处理。
+
+## 代码结构
+
+```
+logistics/
+├── __init__.py      # 模块导出
+├── models.py        # 领域模型定义（实体、值对象、枚举）
+├── service.py       # 领域服务（状态流转、业务逻辑）
+└── demo.py          # 演示脚本（四个场景）
+```
+
+## 领域模型
+
+### 核心聚合
+
+| 聚合根 | 职责 |
+|--------|------|
+| **Waybill（运单）** | 管理包裹清单、生命周期状态、路线计划、异常记录与追踪事件 |
+| **TransportTask（运输任务）** | 单个运输区段的调度，关联司机/车辆/负载清单 |
+| **DispatchTask（派送任务）** | 末端派送队列，支持任务分配、二次派送、签收回单 |
+
+### 实体与值对象
+
+- **Parcel**：包裹（重量、尺寸、状态）
+- **RoutePlan / RouteLeg**：路线规划与分段
+- **Station**：站点（网点/分拨中心/中转站）
+- **Vehicle / Driver / Courier**：资源实体
+- **TrackingEvent**：追踪事件（时间戳、位置、类型、备注）
+- **ExceptionCase**：异常记录（分拣异常/路线变更/派送异常）
+
+### 状态流转
+
+```
+包裹生命周期:
+Created → PickedUp → Sorted → InTransit → ArrivedHub
+    ↓                                          ↓
+[异常分支]                              SortedForNextLeg → InTransit (继续中转)
+    ↓                                          ↓
+SortingException ←→ Sorted              OutForDelivery → Delivered
+RouteAdjusted ←→ InTransit                     ↓
+DeliveryException ←→ OutForDelivery      DeliveryException → Return
+```
+
+## 运行演示
+
+```bash
+python -m logistics.demo
+```
+
+### 演示场景
+
+**场景一：正常流程**
+- 揽收 → 分拣 → 运输(上海→上海中转) → 中转分拣 → 运输(上海中转→北京) → 派送 → 签收
+- 预期：运单与包裹最终状态为 `delivered`
+
+**场景二：分拣异常处理**
+- 到达中转站后发现标签损坏
+- 记录异常 → 联系发件人确认 → 解决异常 → 继续流程
+- 预期：最终 `delivered`，含 1 条已解决的分拣异常记录
+
+**场景三：运输路线变更**
+- 运输途中因天气原因需要改道（上海→南京→北京）
+- 记录路线变更 → 更新路线计划 → 按新路线继续
+- 预期：最终 `delivered`，含 1 条已解决的路线变更记录
+
+**场景四：派送异常（二次派送）**
+- 第一次派送时收件人不在家
+- 记录派送异常 → 联系收件人 → 安排二次派送 → 成功签收
+- 预期：最终 `delivered`，含 1 条已解决的派送异常记录
+
+### 预期输出示例
+
+```
+============================================================
+场景一：正常流程演示
+============================================================
+【揽收完成】
+  运单状态: picked_up
+  包裹状态: ['picked_up', 'picked_up']
+  异常记录: 0 条
+...
+【签收完成】
+  运单状态: delivered
+  包裹状态: ['delivered', 'delivered']
+  异常记录: 0 条
+
+全量追踪事件:
+  HH:MM:SS | SH-B   | picked_up          |
+  HH:MM:SS | SH-B   | sorted             |
+  HH:MM:SS | SH-B   | depart             | to SH-H
+  HH:MM:SS | SH-H   | arrive_hub         |
+  HH:MM:SS | SH-H   | sorted_next_leg    |
+  HH:MM:SS | SH-H   | depart             | to BJ-B
+  HH:MM:SS | BJ-B   | arrive_hub         |
+  HH:MM:SS | BJ-B   | out_for_delivery   |
+  HH:MM:SS | BJ-B   | delivered          | 收件人签收
+...
+============================================================
+全部场景演示完成!
+============================================================
+```
+
+## 设计要点
+
+1. **聚合根设计**：Waybill 作为聚合根，统一管理包裹状态同步和追踪事件记录
+2. **状态机约束**：`LogisticsService` 通过 `_ensure_status()` 方法严格控制状态流转
+3. **异常处理机制**：`ExceptionCase` 记录异常类型与处理动作，支持异常→恢复的状态回退
+4. **事件溯源**：`TrackingEvent` 记录每一步操作，支持完整的物流轨迹追踪
+5. **领域服务**：`LogisticsService` 封装复杂的状态转换逻辑，保证业务规则一致性
